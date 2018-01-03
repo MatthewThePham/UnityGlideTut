@@ -12,8 +12,16 @@ public class MenuScreen : MonoBehaviour {
 	public Transform colorPanel;
 	public Transform trailPanel;
 
+	private Texture previousTrail;
+	private GameObject lastPreviewObject;
+
+	public Transform trailPreviewObject;
+	public RenderTexture trailPreviewTexture;
+
 	public RectTransform menuContainer;
 	public Transform LevelPanel;
+
+	private GameObject currentTrail;
 
 	private Vector3 desiredMenuPosition;
 
@@ -70,7 +78,7 @@ public class MenuScreen : MonoBehaviour {
 		//makes butt bigger for selected items
 		colorPanel.GetChild(SaveManager.Instance.state.activeColor).GetComponent<RectTransform>().localScale = Vector3.one *1.125f;
 		trailPanel.GetChild(SaveManager.Instance.state.activeTrail).GetComponent<RectTransform>().localScale = Vector3.one *1.125f;
-				
+			
 	}
 	
 	// Update is called once per frame
@@ -128,7 +136,10 @@ public class MenuScreen : MonoBehaviour {
 
 			//Set color of the image, based on if owned or not
 			Image img=t.GetComponent<Image>();
-			img.color = SaveManager.Instance.IsColorOwned (i) ? Color.white : new Color (0.7f, 0.7f, 0.7f);
+			img.color = SaveManager.Instance.IsColorOwned (i) 
+				? Manager.Instance.playerColor[currentIndex] 
+				: Color.Lerp(Manager.Instance.playerColor[currentIndex], new Color(0,0,0,1),0.25f);
+			//slightly darker background for new color.
 
 			i++;
 		}
@@ -144,11 +155,14 @@ public class MenuScreen : MonoBehaviour {
 			i++;
 
 			//Set trail of the image, based on if owned or not
-			Image img=t.GetComponent<Image>();
+			RawImage img=t.GetComponent<RawImage>();
 			img.color = SaveManager.Instance.IsTrailOwned (i) ? Color.white : new Color (0.7f, 0.7f, 0.7f);
 		}
+		//intilize and set the previous trail to prevent bug swapping
+		previousTrail = trailPanel.GetChild(SaveManager.Instance.state.activeTrail).GetComponent<RawImage>().texture;
 	}
 		
+
 
 	private void InitLevel(){
 		//assign reference
@@ -220,6 +234,8 @@ public class MenuScreen : MonoBehaviour {
 	SaveManager.Instance.state.activeColor = index;
 
 	//change color of model
+	Manager.Instance.playerMaterial.color=Manager.Instance.playerColor[index];
+	
 
 	//change buy/set button text
 		colorBuySetText.text="Current";
@@ -235,6 +251,20 @@ public class MenuScreen : MonoBehaviour {
 		SaveManager.Instance.state.activeTrail = index;
 
 		//change color of model
+		if (currentTrail != null)
+			Destroy(currentTrail);
+
+		//create the new trail and cast to a Game Object
+		currentTrail = Instantiate(Manager.Instance.playerTrails[index]) as GameObject;
+
+		//set it as childern of player
+		//currentTrail.transform.SetParent(FindObjectOfType<MenuPlayer>().transform);
+		currentTrail.transform.SetParent(GameObject.FindGameObjectWithTag("Player").transform);
+
+		//fix scaling and rotation
+		currentTrail.transform.localPosition = Vector3.zero;
+		currentTrail.transform.localRotation = Quaternion.Euler (0, 0, 90);
+		currentTrail.transform.localScale = Vector3.one / 100f ;
 
 		//change buy/set button text
 		trailBuySetText.text="Current";
@@ -308,6 +338,23 @@ public class MenuScreen : MonoBehaviour {
 		if (selectedTrailIndex == currentIndex)
 			return;
 		
+
+
+		//preview trail and get image of preview button
+		trailPanel.GetChild(selectedTrailIndex).GetComponent<RawImage>().texture=previousTrail;
+		//keeps new trail's preview image in previous trail as a backup
+		previousTrail= trailPanel.GetChild(currentIndex).GetComponent<RawImage>().texture;
+		//Sets new trail preview to other camera
+		trailPanel.GetChild(currentIndex).GetComponent<RawImage>().texture = trailPreviewTexture;
+
+		if (lastPreviewObject != null)
+			Destroy (lastPreviewObject);
+
+		//makes trail preview 
+		lastPreviewObject = GameObject.Instantiate(Manager.Instance.playerTrails[currentIndex]) as GameObject;
+		lastPreviewObject.transform.SetParent (trailPreviewObject);
+		lastPreviewObject.transform.localPosition = Vector3.zero;
+
 		//make the icon bigger
 		trailPanel.GetChild(currentIndex).GetComponent<RectTransform>().localScale=Vector3.one *1.125f;
 		//put the previous one on normal scale
@@ -347,9 +394,9 @@ public class MenuScreen : MonoBehaviour {
 				//Buys color successful
 				SetColor(selectedColorIndex);
 
-				//Change color of button
-				colorPanel.GetChild(selectedColorIndex).GetComponent<Image>().color = Color.white;
-
+				//Change color of button 
+				colorPanel.GetChild(selectedColorIndex).GetComponent<Image>().color = Manager.Instance.playerColor[selectedColorIndex];
+				//.25f slightly darker background for new colorm, from previous color to new color
 				//update gold text
 				UpdateGoldText();
 
@@ -372,7 +419,7 @@ public class MenuScreen : MonoBehaviour {
 					SetTrail(selectedTrailIndex);
 
 				//Change color of button
-				trailPanel.GetChild(selectedTrailIndex).GetComponent<Image>().color = Color.white;
+				trailPanel.GetChild(selectedTrailIndex).GetComponent<RawImage>().color = Color.white;
 
 				//update gold text
 				UpdateGoldText();

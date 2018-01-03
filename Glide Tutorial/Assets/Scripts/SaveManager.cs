@@ -24,9 +24,11 @@ public class SaveManager : MonoBehaviour {
 		Debug.Log (state.colorOwned);///16 bits 		0000 0000 0000 0011 =3
 		UnlockColor (2);
 		*/
+
+		Debug.Log (Helper.Serialize<SaveSlate> (state));
 	}
 
-	//Save the whole state of this saveState script to player pref
+	//Save the whole state of this saveState script to player pref instead of a seperate save file
 	public void Save(){
 		PlayerPrefs.SetString("save",Helper.Serialize<SaveSlate>(state));
 	}
